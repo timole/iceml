@@ -1,6 +1,6 @@
 import requests
 import psycopg2
-import datetime, time
+import datetime,time
 
 TABLE_NAME = 'ais_observation'
 COLUMN_NAMES = ','.join(['timestamp', 'mmsi', 'location', 'sog', 'cog', 'navstat', 'posacc', 'raim', 'heading', 'timestamp_seconds'])
@@ -14,8 +14,8 @@ def connect():
         print("Db connection failed")
         print(e)
 
-def timeString(time):
-    return time.replace(tzinfo=datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3]+'Z'
+def timeString(timeStamp):
+    return timeStamp.replace(tzinfo=datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3]+'Z'
 
 def geographyPoint(lon, lat): 
     return "ST_GeogFromText('SRID=4326;POINT({} {})')".format(lon, lat)
@@ -49,19 +49,19 @@ def writeFeature(feature, cursor):
 
 def doRequest(requestTime, conn, cursor):
     data = getData(requestTime)
-    results = map(lambda d: writeFeature(d, cursor), data["features"])
+    results = list(map(lambda d: writeFeature(d, cursor), data["features"]))
     maxTimeStamp = max(map(lambda r: r[0], results))
-    writeCount = sum(1 for p in results if p[1])
-    conn.commit
+    writeCount = sum(1 for r in results if r[1])
+    conn.commit()
     print("Wrote positions: handled={} wrote={} newest={}".format(len(data['features']), writeCount, timeString(maxTimeStamp)))
     return maxTimeStamp
     
 conn = connect()
 cursor = conn.cursor()
 requestTime = datetime.datetime.utcnow() - datetime.timedelta(minutes=30)
+#doRequest(requestTime, conn, cursor)
 while True:
     maxWrittenTime = doRequest(requestTime, conn, cursor)
     if maxWrittenTime > requestTime:
         requestTime = maxWrittenTime
     time.sleep(60)
-
