@@ -41,12 +41,15 @@ def append_sudden_stopping(ais):
 
 
 def merge_vessel_location_and_metadata(vl, vm):
+    """ Merges dataframes (vessel location and meta data) into a single dataframe.
+    Assumes that the dataframes are for a single mmsi and ordered by timestamp.
+    """
     df = None
 
     vl_index = 0
     vm_index = 0
 
-    colnames = ['timestamp', 'mmsi', 'name']
+    colnames = ['timestamp', 'mmsi', 'lon', 'lat', 'sog', 'cog', 'heading', 'name', 'ship_type', 'callsign', 'imo', 'destination', 'eta', 'draught', 'pos_type', 'reference_point_a', 'reference_point_b', 'reference_point_c', 'reference_point_d']
 
     while vl.iloc[vl_index].timestamp < vm.iloc[vm_index].timestamp:
         vl_index += 1
@@ -57,7 +60,25 @@ def merge_vessel_location_and_metadata(vl, vm):
     while vl_index < len(vl):
         if vl.iloc[vl_index].timestamp and (vm_index + 1) < len(vm) and vm.iloc[vm_index].timestamp < vl.iloc[vl_index].timestamp:
             vm_index += 1
-        df.loc[len(df) + 1] = {'timestamp': vl.iloc[vl_index].timestamp, 'mmsi': vl.iloc[vl_index].mmsi, 'name': vm.iloc[vm_index].name}
+        df.loc[len(df) + 1] = {'timestamp': vl.iloc[vl_index].timestamp,
+                               'mmsi': vl.iloc[vl_index].mmsi,
+                               'lon': vl.iloc[vl_index].lon,
+                               'lat': vl.iloc[vl_index].lat,
+                               'sog': vl.iloc[vl_index].sog,
+                               'cog': vl.iloc[vl_index].cog,
+                               'heading': vl.iloc[vl_index].heading,
+                               'name': vm.iloc[vm_index].name,
+                               'ship_type': vm.iloc[vm_index].ship_type,
+                               'callsign': vm.iloc[vm_index].callsign,
+                               'imo': vm.iloc[vm_index].imo,
+                               'destination': vm.iloc[vm_index].destination,
+                               'eta': vm.iloc[vm_index].eta,
+                               'draught': vm.iloc[vm_index].draught,
+                               'pos_type': vm.iloc[vm_index].pos_type,
+                               'reference_point_a': vm.iloc[vm_index].reference_point_a,
+                               'reference_point_b': vm.iloc[vm_index].reference_point_b,
+                               'reference_point_c': vm.iloc[vm_index].reference_point_c,
+                               'reference_point_d': vm.iloc[vm_index].reference_point_d }
         vl_index += 1
 
     return df
