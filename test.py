@@ -6,7 +6,8 @@ import numpy as np
 import pandas as pd
 from ais import analysis
 
-TEST_DATA_FILE = "testdata/testdata.csv"
+TEST_VESSEL_LOCATION_FILE = "testdata/vessellocations.csv"
+TEST_VESSEL_METADATA_FILE = "testdata/vesselmetadatas.csv"
 
 # some vessels and icebreakers in the dataset
 AURA = 230601000
@@ -20,10 +21,11 @@ class TestAnalysis(unittest.TestCase):
     @classmethod
     def setUpClass(self):
         pd.set_option('display.width', 240)
-        self.ais = pd.read_csv(TEST_DATA_FILE, parse_dates = ['timestamp'])
+        self.vl = pd.read_csv(TEST_VESSEL_LOCATION_FILE, parse_dates = ['timestamp'])
+        self.vm = pd.read_csv(TEST_VESSEL_METADATA_FILE, parse_dates = ['timestamp'])
 
     def test_number_of_observations(self):
-        self.assertEqual(len(self.ais), 99063)
+        self.assertEqual(len(self.vl), 99063)
 
 
     def test_append_sudden_stopping(self):
@@ -48,10 +50,24 @@ class TestAnalysis(unittest.TestCase):
 
 
     def test_append_sudden_stopping_sample_data(self):
-        ais = self.ais
-        ais = ais[(ais['timestamp'] >= '2018-03-19 12:45:00') & (ais['timestamp'] < '2018-03-19 13:00:00')]
-        analysis.append_sudden_stopping(ais)
-        self.assertEqual(len(ais[ais['sudden_stopping'] == True]), 4)
+        vl = self.vl
+        vl = vl[(vl['timestamp'] >= '2018-03-19 12:45:00') & (vl['timestamp'] < '2018-03-19 13:00:00')]
+        analysis.append_sudden_stopping(vl)
+        self.assertEqual(len(vl[vl['sudden_stopping'] == True]), 4)
+
+
+    def test_merge_location_and_metadata(self):
+        vl = pd.DataFrame(data = {'timestamp': pd.to_datetime(['2013-01-01 00:00:00.100', '2013-01-01 00:00:01.101', '2013-01-01 00:00:02.102', '2013-01-01 00:00:03.103', '2013-01-01 00:00:04.104']),
+                                  'mmsi': [123, 123, 123, 123, 123]})
+
+        vm = pd.DataFrame(data = {'timestamp': pd.to_datetime(['2013-01-01 00:00:00.123', '2013-01-01 00:00:01.123', '2013-01-01 00:00:03.123']),
+                                  'mmsi': [123, 123, 123],
+                                  'name': ['name1', 'name2', 'name3']})
+
+        df = analysis.merge_vessel_location_and_metadata(vl, vm)
+
+        self.assertEqual(len(df), 4)
+        self.assertEqual(~df.name.isin(['name1']).any(), True)
 
 
 if __name__ == '__main__':

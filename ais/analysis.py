@@ -38,3 +38,26 @@ def append_sudden_stopping(ais):
         vessels[mmsi]['previous_observations'] = vessels[mmsi]['previous_observations'].append(ais.loc[i])
 
     return ais
+
+
+def merge_vessel_location_and_metadata(vl, vm):
+    df = None
+
+    vl_index = 0
+    vm_index = 0
+
+    colnames = ['timestamp', 'mmsi', 'name']
+
+    while vl.iloc[vl_index].timestamp < vm.iloc[vm_index].timestamp:
+        vl_index += 1
+
+    if df is None:
+        df = pd.DataFrame(columns = colnames)
+
+    while vl_index < len(vl):
+        if vl.iloc[vl_index].timestamp and (vm_index + 1) < len(vm) and vm.iloc[vm_index].timestamp < vl.iloc[vl_index].timestamp:
+            vm_index += 1
+        df.loc[len(df) + 1] = {'timestamp': vl.iloc[vl_index].timestamp, 'mmsi': vl.iloc[vl_index].mmsi, 'name': vm.iloc[vm_index].name}
+        vl_index += 1
+
+    return df
