@@ -40,45 +40,54 @@ def append_sudden_stopping(ais):
     return ais
 
 
-def merge_vessel_location_and_metadata(vl, vm):
-    """ Merges dataframes (vessel location and meta data) into a single dataframe.
+def merge_vessel_meta_and_location_data(vm, vl):
+    """ Merges dataframes (vessel meta data and vessel location) into a single dataframe.
     Assumes that the dataframes are for a single mmsi and ordered by timestamp.
     """
+
+    mmsis = vl['mmsi'].unique()
+
     df = None
+    for mmsi in mmsis:
+        result = merge_single_vessel_meta_and_location_data(vm[vm['mmsi'] == mmsi], vl[vl['mmsi'] == mmsi])
+        if df is None:
+            df = result
+        else:
+            df = df.append(result, ignore_index=True)
 
-    vl_index = 0
+    return df
+
+
+def merge_single_vessel_meta_and_location_data(vm, vl):
+    vm = vm.sort_values('timestamp')
+    vl = vl.sort_values('timestamp')
+
+    vl_colnames = ['timestamp', 'mmsi', 'lon', 'lat', 'sog','cog', 'heading']
+    vm_colnames = ['name', 'ship_type', 'callsign', 'imo', 'destination', 'eta', 'draught', 'pos_type', 'reference_point_a', 'reference_point_b', 'reference_point_c', 'reference_point_d'];
+
+    df = pd.DataFrame(columns = vl_colnames + vm_colnames)
+
     vm_index = 0
-
-    colnames = ['timestamp', 'mmsi', 'lon', 'lat', 'sog', 'cog', 'heading', 'name', 'ship_type', 'callsign', 'imo', 'destination', 'eta', 'draught', 'pos_type', 'reference_point_a', 'reference_point_b', 'reference_point_c', 'reference_point_d']
-
-    while vl.iloc[vl_index].timestamp < vm.iloc[vm_index].timestamp:
-        vl_index += 1
-
-    if df is None:
-        df = pd.DataFrame(columns = colnames)
+    vl_index = 0
 
     while vl_index < len(vl):
-        if vl.iloc[vl_index].timestamp and (vm_index + 1) < len(vm) and vm.iloc[vm_index].timestamp < vl.iloc[vl_index].timestamp:
-            vm_index += 1
-        df.loc[len(df) + 1] = {'timestamp': vl.iloc[vl_index].timestamp,
-                               'mmsi': vl.iloc[vl_index].mmsi,
-                               'lon': vl.iloc[vl_index].lon,
-                               'lat': vl.iloc[vl_index].lat,
-                               'sog': vl.iloc[vl_index].sog,
-                               'cog': vl.iloc[vl_index].cog,
-                               'heading': vl.iloc[vl_index].heading,
-                               'name': vm.iloc[vm_index].name,
-                               'ship_type': vm.iloc[vm_index].ship_type,
-                               'callsign': vm.iloc[vm_index].callsign,
-                               'imo': vm.iloc[vm_index].imo,
-                               'destination': vm.iloc[vm_index].destination,
-                               'eta': vm.iloc[vm_index].eta,
-                               'draught': vm.iloc[vm_index].draught,
-                               'pos_type': vm.iloc[vm_index].pos_type,
-                               'reference_point_a': vm.iloc[vm_index].reference_point_a,
-                               'reference_point_b': vm.iloc[vm_index].reference_point_b,
-                               'reference_point_c': vm.iloc[vm_index].reference_point_c,
-                               'reference_point_d': vm.iloc[vm_index].reference_point_d }
+        if vl.iloc[vl_index].timestamp > vm.iloc[vm_index].timestamp:
+            while vm_index + 1 < len(vm) and vm.iloc[vm_index + 1].timestamp < vl.iloc[vl_index].timestamp:
+                vm_index += 1
+
+            if vm_index >= len(vm):
+                break
+
+            df.loc[len(df)] = merge_vessel_row(vl, vl_index, vl_colnames, vm, vm_index, vm_colnames)
         vl_index += 1
 
     return df
+
+
+def merge_vessel_row(vl, vl_index, vl_colnames, vm, vm_index, vm_colnames):
+    d = {}
+    for col_name in vl_colnames:
+        d[col_name] = vl.iloc[vl_index][col_name]
+    for col_name in vm_colnames:
+        d[col_name] = vm.iloc[vm_index][col_name]
+    return d
