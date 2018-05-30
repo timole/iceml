@@ -1,5 +1,6 @@
 import pandas as pd
-import numpy as np
+import logging
+logger = logging.getLogger(__name__)
 
 MOVE_SPEED_THRESHOLD = 5
 STOP_SPEED_THRESHOLD = 0.5
@@ -44,16 +45,20 @@ def merge_vessel_meta_and_location_data(vm, vl):
     """ Merges dataframes (vessel meta data and vessel location) into a single dataframe.
     Assumes that the dataframes are for a single mmsi and ordered by timestamp.
     """
+    logger = logging.getLogger(__name__)
 
     mmsis = vl['mmsi'].unique()
 
     df = None
+    i = 0
     for mmsi in mmsis:
+        logger.debug("Merge vessel {} ({}%)".format(mmsi, round(i / len(mmsis) * 100, 1)))
         result = merge_single_vessel_meta_and_location_data(vm[vm['mmsi'] == mmsi], vl[vl['mmsi'] == mmsi])
         if df is None:
             df = result
         else:
             df = df.append(result, ignore_index=True)
+        i += 1
 
     return df
 
@@ -64,12 +69,17 @@ def merge_single_vessel_meta_and_location_data(vm, vl):
 
     vl_colnames = ['timestamp', 'mmsi', 'lon', 'lat', 'sog','cog', 'heading']
     vm_colnames = ['name', 'ship_type', 'callsign', 'imo', 'destination', 'eta', 'draught', 'pos_type', 'reference_point_a', 'reference_point_b', 'reference_point_c', 'reference_point_d'];
+    n_rows = len(vl[vl['timestamp'] >= min(vm['timestamp'])])
 
-    df = pd.DataFrame(columns = vl_colnames + vm_colnames)
+    df = pd.DataFrame(index=range(n_rows), columns = vl_colnames + vm_colnames)
+
+    if len(vm) == 0 or len(vl) == 0:
+        return df
 
     vm_index = 0
     vl_index = 0
 
+    i = 0
     while vl_index < len(vl):
         if vl.iloc[vl_index].timestamp > vm.iloc[vm_index].timestamp:
             while vm_index + 1 < len(vm) and vm.iloc[vm_index + 1].timestamp < vl.iloc[vl_index].timestamp:
@@ -78,7 +88,8 @@ def merge_single_vessel_meta_and_location_data(vm, vl):
             if vm_index >= len(vm):
                 break
 
-            df.loc[len(df)] = merge_vessel_row(vl, vl_index, vl_colnames, vm, vm_index, vm_colnames)
+            df.loc[i] = merge_vessel_row(vl, vl_index, vl_colnames, vm, vm_index, vm_colnames)
+            i += 1
         vl_index += 1
 
     return df
