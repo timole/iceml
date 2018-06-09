@@ -133,7 +133,7 @@ def merge_location_and_ice_condition(vl, ice):
         else:
             df.loc[i] = vl.iloc[i]
 
-        if i % int(len(vl) / 100) == 0:
+        if i % 1000 == 0:
             logger.debug("Merge ice conditions ({}%)".format(int(i / len(vl) * 100)))
 
         i += 1
