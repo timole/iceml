@@ -8,6 +8,7 @@ from ais import analysis
 
 TEST_VESSEL_LOCATION_FILE = "testdata/vessellocations.csv"
 TEST_VESSEL_METADATA_FILE = "testdata/vesselmetadatas.csv"
+TEST_ICE_CONDITION_FILE = "testdata/iceconditions.csv"
 
 # some vessels and icebreakers in the dataset
 AURA = 230601000
@@ -23,6 +24,7 @@ class TestAnalysis(unittest.TestCase):
         pd.set_option('display.width', 240)
         self.vl = pd.read_csv(TEST_VESSEL_LOCATION_FILE, parse_dates = ['timestamp'])
         self.vm = pd.read_csv(TEST_VESSEL_METADATA_FILE, parse_dates = ['timestamp'])
+        self.ice = pd.read_csv(TEST_ICE_CONDITION_FILE, parse_dates = ['timestamp'])
 
     def test_number_of_observations(self):
         self.assertEqual(len(self.vl), 99063)
@@ -100,6 +102,21 @@ class TestAnalysis(unittest.TestCase):
         self.assertEqual(len(df), 6)
         self.assertEqual(df.name.isin(['name1_123', 'name2_123']).any(), True)
         self.assertEqual(~df.name.isin(['name3_123']).any(), True)
+
+    def test_merge_location_and_ice_condition(self):
+        vl = pd.DataFrame(data = {'timestamp': pd.to_datetime(['2018-03-21 00:00:00.100', '2018-03-21 00:00:00.101', '2018-03-21 00:00:00.103', '2018-03-21 00:00:00.105', '2018-03-21 00:00:00.106']),
+                                  'mmsi': [123, 123, 123, 123, 123],
+                                  'lon': [0.2, 23.2, 23.2, 23.2, 23.2],
+                                  'lat': [0.1, 65.1, 65.1, 65.1, 65.1],
+                                  'sog': [10, 10, 10, 10, 10],
+                                  'cog': [120, 120, 120, 120, 120],
+                                  'heading': [121, 121, 121, 121, 121]})
+
+        df = analysis.merge_location_and_ice_condition(vl, self.ice)
+        self.assertTrue(np.isnan(df.iloc[0]['concentration']))
+        self.assertTrue(np.isnan(df.iloc[0]['thickness']))
+        self.assertEqual(df.iloc[1]['concentration'], 98)
+        self.assertEqual(df.iloc[1]['thickness'], 0.8)
 
 
 if __name__ == '__main__':

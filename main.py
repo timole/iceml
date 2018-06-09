@@ -20,12 +20,13 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Vessel data combiner')
     parser.add_argument('-vm', '--vessel-meta-data-file', help='Vessel metadata input file', required=True)
     parser.add_argument('-vl', '--vessel-location-data-file', help='Vessel location data input file', required=True)
+    parser.add_argument('-ice', '--ice-condition-data-file', help='Ice condition data input file', required=True)
     parser.add_argument('-o', '--merged-data-file', help='Merged output file', required=True)
     args = vars(parser.parse_args())
     return args
 
 
-def merge_files(vm_file, vl_file, merged_file):
+def merge_files(vm_file, vl_file, ice_file, merged_file):
     logger.info("Merge metadata from {} and location data from {} to file {}".format(vm_file, vl_file, merged_file))
 
     logger.info("Reading file {}".format(vm_file))
@@ -34,9 +35,14 @@ def merge_files(vm_file, vl_file, merged_file):
     logger.info("Reading file {}".format(vl_file))
     vl = pd.read_csv(vl_file, parse_dates = ['timestamp'])
 
-    logger.info("Merging {} metadata rows and {} location data rows" .format(len(vm), len(vl)))
+    logger.info("Reading file {}".format(ice_file))
+    ice = pd.read_csv(ice_file, parse_dates = ['timestamp'])
+
+    logger.info("Merging {} metadata rows, {} location data rows and {} ice data rows" .format(len(vm), len(vl), len(ice)))
+
     merged = analysis.merge_vessel_meta_and_location_data(vm, vl)
-    merged.to_csv(merged_file, sep=",")
+    merged = analysis.merge_location_and_ice_condition(merged, ice)
+    merged.to_csv(merged_file, sep=",", index=False)
     logger.info("Wrote {} rows to file {}".format(len(merged), merged_file))
 
 
@@ -44,7 +50,7 @@ def main():
     args = parse_args()
 
     start_time = datetime.datetime.now()
-    merge_files(args['vessel_meta_data_file'], args['vessel_location_data_file'], args['merged_data_file'])
+    merge_files(args['vessel_meta_data_file'], args['vessel_location_data_file'], args['ice_condition_data_file'], args['merged_data_file'])
     logger.info("Execution time: {} seconds:".format(round((datetime.datetime.now() - start_time).total_seconds(), 1)))
 
 

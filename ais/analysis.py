@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 import logging
 logger = logging.getLogger(__name__)
 
@@ -52,12 +53,15 @@ def merge_vessel_meta_and_location_data(vm, vl):
     df = None
     i = 0
     for mmsi in mmsis:
-        logger.debug("Merge vessel {} ({}%)".format(mmsi, round(i / len(mmsis) * 100, 1)))
-        result = merge_single_vessel_meta_and_location_data(vm[vm['mmsi'] == mmsi], vl[vl['mmsi'] == mmsi])
-        if df is None:
-            df = result
-        else:
-            df = df.append(result, ignore_index=True)
+        try:
+            logger.debug("Merge vessel {} ({}%)".format(mmsi, round(i / len(mmsis) * 100, 1)))
+            result = merge_single_vessel_meta_and_location_data(vm[vm['mmsi'] == mmsi], vl[vl['mmsi'] == mmsi])
+            if df is None:
+                df = result
+            else:
+                df = df.append(result, ignore_index=True)
+        except:
+            logger.exception("Exception in merging vessel {}".format(mmsi))
         i += 1
 
     return df
@@ -102,3 +106,36 @@ def merge_vessel_row(vl, vl_index, vl_colnames, vm, vm_index, vm_colnames):
     for col_name in vm_colnames:
         d[col_name] = vm.iloc[vm_index][col_name]
     return d
+
+
+def get_ice_conditions(ice, location, day):
+    ice_condition = ice[(ice['lat'] <= location['lat']) & (ice['lon'] <= location['lon'])]
+    if len(ice_condition) > 0:
+        return ice_condition.tail(1)
+    else:
+        return None
+
+
+def merge_location_and_ice_condition(vl, ice):
+    vl = vl.sort_values('timestamp')
+    i = 0
+
+    ice_columns = ['concentration', 'thickness']
+
+    df = pd.DataFrame(index=range(len(vl)), columns=np.append(vl.columns.values, ice_columns))
+    while i < len(vl):
+        ts = vl.iloc[i].timestamp
+        day = ts.strftime('%Y-%m-%d')
+
+        ice_conditions = get_ice_conditions(ice, vl.iloc[i][['lat', 'lon']], day)
+        if ice_conditions is not None:
+            df.loc[i] = vl.iloc[i].append(ice_conditions[ice_columns].iloc[0])
+        else:
+            df.loc[i] = vl.iloc[i]
+
+        if i % int(len(vl) / 100) == 0:
+            logger.debug("Merge ice conditions ({}%)".format(int(i / len(vl) * 100)))
+
+        i += 1
+
+    return df
