@@ -7,3 +7,5 @@ analysis/tmp.ipynb
 bigdata/
 merge.log
 target/
+*.password
+.DS_Store
